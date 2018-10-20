@@ -1,60 +1,6 @@
 /*
- * ***************************新的芯片需要更改信息******************
- * 1 MQTT分配的账户和密码，唯一。 需手动添加在MQTT服务器配置文件，重启服务器。  love_00001_x-love_00100_x留着测试
- * 2 MQTT自己和对方的的名字，用于生成唯一通信话题。
- * 共四个修改
- * 
- * ******************程序流程***********************
-1 上电断电自动连接WIFI
-2 长按进入网页配网  192.168.4.1  WIFI名= WIFI密码 LOVELAMP_（ESP芯片唯一ID）
-3 自动连MQTT
-4 进入交互模式
-  订阅自己的接受话题
-  订阅对方的发送话题
-5 单方面短按                灯亮，我在旁边等你。           1同时对两盏灯颜色切换模式  红 绿 栏 白 黄 紫
-  单方面在某种颜色下长按    灯单色呼吸，我手正在灯上等你。 1在该颜色下同时两盏灯呼吸动态发光  亮-暗-亮  
-                                                           2中途停止则停留在当前颜色和亮度下
-                                                              2-1 重新长按触摸接着上次停下的动态呼吸
-                                                              2-2 重新短按切换到下个颜色
-  双方共同长按              七彩渐变，我们的手同时在灯上。 1各种颜色动态变化
-                                                           
-说明：
- 
- 网页服务器，只能配置 AP模式，速度才最快。  
- STA和AP共存模式不行，网页刷不出来。
+ * ***********************************新的芯片需要更改信息************************************
 */
-
-//---------------------- 修改 -------------------------------------------
-
-// 准入MQTT服务器的账号密码
-#define MQTT_SSID        "love_00001_x"  //修改账号
-#define MQTT_PASSWORD    "love_00001_x"  //修改密码
-// 自己的MQTT连接ID名称     love+_唯一自定义序列号_+x或y                 MQTT_MYNAME用于生成唯一通信话题    MQTT_MYNAME+SN(出场芯片唯一ID)用于生成唯一MQTT  ID
-#define MQTT_MYNAME     "love_00001_x"        //修改自己的名称
-#define MQTT_YOURNAME   "love_00001_y"        //修改对方的名称
-// MQTT服务器
-#define MQTT_SERVER "www.dongvdong.top"
-#define PORT 1883
-//---------------------------------------------------------------------------------------------
-/*
-话题格式：
-接收   lovelamp/+MQTT_MYNAME+"/r"     lovelamp/love_00001_x/r
-发布   lovelamp/+MQTT_MYNAME+"/s"     lovelamp/love_00001_x/s
-*/
-
-// 自己的话题 
-//#define MQTT_MYNAME    "love_testx"        //实际全称 MQTT_MYNAME+SN(esn8266出场唯一设备ID)  必须唯一
-String mqtt_mytopic_s=String()+"lovelamp/"+String(MQTT_MYNAME)+"/s";
-String mqtt_mytopic_r=String()+"lovelamp/"+String(MQTT_MYNAME)+"/r";
-#define MQTT_MYTOPICS mqtt_mytopic_s.c_str()
-#define MQTT_MYTOPICR mqtt_mytopic_r.c_str()
- 
-// 对方的话题 
-//#define MQTT_YOURNAME    "love_testy"        //实际全称 MQTT_MYNAME+SN(esn8266出场唯一设备ID)  必须唯一
-String mqtt_yourtopic_s=String()+"lovelamp/"+String(MQTT_YOURNAME)+"/s";
-String mqtt_yourtopic_r=String()+"lovelamp/"+String(MQTT_YOURNAME)+"/r";
-#define MQTT_YOURTOPICS mqtt_yourtopic_s.c_str()
-#define MQTT_YOURTOPICR mqtt_yourtopic_r.c_str()
 
 
 //-----------------------------A-1 库引用开始-----------------//
@@ -75,10 +21,6 @@ String mqtt_yourtopic_r=String()+"lovelamp/"+String(MQTT_YOURNAME)+"/r";
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-
-
-
-
 //ESP获取自身ID
 #ifdef ESP8266
 extern "C" {
@@ -88,25 +30,25 @@ extern "C" {
 
 //-----------------------------A-1 库引用结束-----------------//
 
-//------是否开启打印-----------------
-#define Use_Serial Serial
-#define smartLED D4 
+//------------------------------------------- 修改 -------------------------------------------
+// MQTT服务器
+#define MQTT_SERVER "www.dongvdong.top"
+#define PORT 1883
+// 准入MQTT服务器的账号密码
+#define MQTT_MYNAME      "love_00001_x"        //修改自己的名称
+#define MQTT_SSID        "love_00001_x"  //修改账号
+#define MQTT_PASSWORD    "love_00001_x"  //修改密码
+#define MQTT_MYTOPIC     "lovelamp/love_00001_x/"  
+/*
+话题格式：
+接收   lovelamp/+MQTT_MYNAME+"/r"     lovelamp/love_00001_x/r
+发布   lovelamp/+MQTT_MYNAME+"/s"     lovelamp/love_00001_x/s
+*/
 
 
 
-//-----------------------------A-2 变量声明开始-----------------//
-int PIN_Led = D4;
-int PIN_Led_light = 0; 
-bool PIN_Led_State=0;
 
-int workmode=0;
-int led_sudu=80;
-/************************ 按键中断7**********************************/
-//按键中断
-int PIN_Led_Key= D2 ;// 不要上拉电阻
-
-
-
+ //---------------------------------------------------------------------------------------------//
 
 
 
@@ -131,15 +73,47 @@ String SN;
 #define MAGIC_NUMBER 0xAA
 struct config_type
 {
-  char stassid[50];
-  char stapsw[50];
+  char stassid[50]; //WIFI账号
+  char stapsw[50];  //WIFI密码
   uint8_t magic;
+
+  uint8_t mqtt_bool;  //是否有MQTT消息储存
+  char mqtt_sever[50]; //www.dongvdong.top
+  int  mqtt_port;  //1883
+  char mqtt_nameid[100];//MQTT分配的唯一client id 
+  char mqtt_ssid[20];  //MQTT唯一登陆账号
+  char mqtt_psw[20];   //MQTT唯一登录密码
+  char mqtt_topic[100]; //MQTT唯一接收和发布话题  接收/r   发送/s 
+  
 };
 config_type config_wifi;
 
 
+// 自己的话题 
+String mqtt_mytopic_s= String()+ String(config_wifi.mqtt_topic)+"s";
+String mqtt_mytopic_r= String()+ String(config_wifi.mqtt_topic)+"r";
+
+//  网页
+#define MQTT_MYTOPICS  mqtt_mytopic_s.c_str()
+#define MQTT_MYTOPICR  mqtt_mytopic_r.c_str()
  
-  
+//------是否开启打印-----------------
+#define Use_Serial Serial
+#define smartLED D4 
+
+
+
+//-----------------------------A-2 变量声明开始-----------------//
+int PIN_Led = D4;
+int PIN_Led_light = 0; 
+bool PIN_Led_State=0;
+
+int workmode=0;
+int led_sudu=80;
+/************************ 按键中断7**********************************/
+//按键中断
+int PIN_Led_Key= D2 ;// 不要上拉电阻
+
  
 int sendbegin=0;         // 0  没发送  1 发送短消息  2 发送长消息
 char sendmsg[100];// 发送话题-原始
@@ -192,10 +166,11 @@ void http_jiexi(http_request ruqest);
 void handleWifi_wangye();
 void handleTest();
 
-
+void handleMqttConfig();
 
 void smartConfig();//500闪烁
 void Mqtt_message();
+void mqtt_int();
 void mqtt_reconnect() ;
 
 
@@ -327,7 +302,13 @@ void waitKey()
       // 不按按键，自动连接上传WIFI
     if (millis() - preTick2 > 5000 && digitalRead(PIN_Led_Key) == 0) {   // 大于5S还灭有触摸，直接进入配网
        Serial.println("\r\n 10s timeout!");
-            if(  workmode==0){ wifi_Init();}          
+            if(  workmode==0){ 
+              
+               wifi_Init();           
+               WiFi.mode(WIFI_STA);
+             
+            
+            }          
             return; 
             }
                                   
@@ -381,7 +362,7 @@ void wifi_Init(){
   
  
   }
-  WiFi.mode(WIFI_STA);
+  //WiFi.mode(WIFI_STA);
   Use_Serial.println("--------------WIFI CONNECT!-------------  ");
   Use_Serial.printf("SSID:%s\r\n", WiFi.SSID().c_str());
   Use_Serial.printf("PSW:%s\r\n", WiFi.psk().c_str());
@@ -398,11 +379,21 @@ void wifi_Init(){
 void saveConfig()
 {
   Serial.println("Save config!");
-  Serial.print("stassid:");
+  Serial.print("WIFI_NAME:");
   Serial.println(config_wifi.stassid);
-  Serial.print("stapsw:");
+  Serial.print("WIFI_PSW:");
   Serial.println(config_wifi.stapsw);
-  EEPROM.begin(1024);
+  
+  Serial.println("MQTT:");
+ // Serial.println(config_wifi.mqtt_bool);
+  Serial.println(config_wifi.mqtt_sever);
+  Serial.println(config_wifi.mqtt_port);
+  Serial.println(config_wifi.mqtt_nameid);
+  Serial.println(config_wifi.mqtt_ssid);
+  Serial.println(config_wifi.mqtt_psw);
+  Serial.println(config_wifi.mqtt_topic);
+  
+  EEPROM.begin(1024*2);//一共4K
   uint8_t *p = (uint8_t*)(&config_wifi);
   for (int i = 0; i < sizeof(config_wifi); i++)
   {
@@ -415,7 +406,7 @@ void saveConfig()
 */
 void loadConfig()
 {
-  EEPROM.begin(1024);
+  EEPROM.begin(1024*2);
   uint8_t *p = (uint8_t*)(&config_wifi);
   for (int i = 0; i < sizeof(config_wifi); i++)
   {
@@ -428,17 +419,38 @@ void loadConfig()
     strcpy(config_wifi.stassid, DEFAULT_STASSID);
     strcpy(config_wifi.stapsw, DEFAULT_STAPSW);
     config_wifi.magic = MAGIC_NUMBER;
-    saveConfig();
     Serial.println("Restore config!");
   }
-  Serial.println(" ");
-  Serial.println("-----Read config-----");
+
+  Serial.println("-----------------Read wifi config!----------------");
   Serial.print("stassid:");
   Serial.println(config_wifi.stassid);
   Serial.print("stapsw:");
   Serial.println(config_wifi.stapsw);
-  Serial.println("-------------------");
-
+  Serial.println("--------------------------------------------------");  
+  ESP.wdtFeed();
+if (config_wifi.mqtt_bool !=MAGIC_NUMBER){
+      config_wifi.mqtt_bool = MAGIC_NUMBER;
+      strcpy(config_wifi.mqtt_sever, MQTT_SERVER); 
+//       strcpy(config_wifi.mqtt_port, PORT); 
+        config_wifi.mqtt_port=1883;
+          strcpy(config_wifi.mqtt_nameid, MQTT_MYNAME);
+            strcpy(config_wifi.mqtt_ssid, MQTT_SSID);
+              strcpy(config_wifi.mqtt_psw, MQTT_PASSWORD);
+                strcpy(config_wifi.mqtt_topic, MQTT_MYTOPIC);
+    Serial.println("MQTT config!");
+  }
+  Serial.println("-----------------Read mqtt config!----------------");
+  Serial.println(config_wifi.mqtt_sever);
+  Serial.println(config_wifi.mqtt_port);
+  Serial.println(config_wifi.mqtt_nameid);
+  Serial.println(config_wifi.mqtt_ssid);
+  Serial.println(config_wifi.mqtt_psw);
+  Serial.println(config_wifi.mqtt_topic);
+  Serial.println("--------------------------------------------------");  
+  
+  saveConfig();
+ 
 }
  
   
@@ -468,17 +480,34 @@ void SET_AP(){
 //3-4ESP建立网页服务器
 void Server_int(){
   
-   server.on ("/", handleMain); // 绑定‘/’地址到handleMain方法处理 ----  返回主页面 一键配网页面 
-  server.on ("/pin", HTTP_GET, handlePin); // 绑定‘/pin’地址到handlePin方法处理  ---- 开关灯请求 
+   server.on ("/", handleMain); // 返回WIFI配网网页
+   server.on ("/pin", HTTP_GET, handlePin); // 绑定‘/pin’地址到handlePin方法处理  ---- 开关灯请求 
    server.on ("/wifi", HTTP_GET, handleWifi); // 绑定‘/wifi’地址到handlePWIFI方法处理  --- 重新配网请求
-    server.on ("/wifi_wangye", HTTP_GET, handleWifi_wangye);
-    server.on ("/test", HTTP_GET, handleTest);
-    server.onNotFound ( handleNotFound ); // NotFound处理
+   server.on ("/wifi_wangye", HTTP_GET, handleWifi_wangye);// 连接网页配网
+   
+   server.on ("/mqtt_html", HTTP_GET, handleMqttConfig);//返回MQTT配网网页
+   server.on ("/mqtt", HTTP_GET, handleMqtt);//配置MQTT级本消息 
+      
+   server.on ("/test", HTTP_GET, handleTest);
+   server.onNotFound ( handleNotFound ); // NotFound处理
    server.begin(); 
    
    Use_Serial.println ( "HTTP server started" );
   
   }
+
+void handleMqtt(){
+  
+  File file = SPIFFS.open("/mqtt.html", "r");  
+
+  size_t sent = server.streamFile(file, "text/html");  
+
+  file.close();  
+
+  return;  
+  
+  }
+  
 //3-5-1 网页服务器主页
 void handleMain() {  
 
@@ -541,7 +570,6 @@ void handlePin() {
   根据pwd的值来进行   wifi密码传输
  */  
 
-
 void handleWifi(){
   
   
@@ -563,7 +591,7 @@ void handleWifi(){
          wifipwd = server.arg("pwd"); // 获得a参数的值    
            }
                   
-          String backtxt= String()+" WIFI:\""+wifiname+"\"配置成功! \n\r 已进入慢闪模式！\n\r请重启设备等待其自行连接！" ;// 用于串口和网页返回信息
+          String backtxt= String()+" 无线WIFI\""+wifiname+"\"配置成功! \n\r 请重启！" ;// 用于串口和网页返回信息
           
           Use_Serial.println ( backtxt); // 串口打印给电脑
           
@@ -577,11 +605,8 @@ void handleWifi(){
          server.send ( 200, "text/html", backtxt); // 网页返回给手机提示  
          //ESP.reset();
          wifi_Init();
- 
-          //   server.send ( 200, "text/html", "connect scucces!"); // 网页返回给手机提示   
-     
-       
-          return;          
+    
+         return;          
            
 
     } else if(config == "off") { // a=off  
@@ -644,7 +669,7 @@ void handleWifi_wangye(){
       
          // wifi连接开始
          wifi_Init();
- 
+   
   //--------------------------------- 认证上网-------------------------------------------------      
 
 
@@ -782,6 +807,80 @@ identity：不进行压缩
   return 2;
 }
 
+void handleMqttConfig(){
+   
+   if(server.hasArg("mqtt_config")) { // 请求中是否包含有a的参数  
+
+        String mqtt_config = server.arg("mqtt_config"); // 获得a参数的值  
+     
+        
+     if(mqtt_config == "on") { // a=on  
+      
+          if(server.hasArg("mqtt_sever")) { // 请求中是否包含有a的参数  
+          //config_wifi.mqtt_sever = server.arg("mqtt_sever"); // 获得a参数的值
+            server.arg("mqtt_sever").toCharArray(config_wifi.mqtt_sever, 50);    // 从网页得到的 WIFI名
+          
+          }
+          
+         if(server.hasArg("mqtt_port")) { // 请求中是否包含有a的参数  
+
+          
+             String num  = server.arg("mqtt_port"); // 获得a参数的值  
+      
+              int i, len;
+              int result=0;
+              
+              len = num.length();
+             
+              for(i=0; i<len; i++)
+              {
+                result = result * 10 + ( num[i] - '0' );
+              }
+                  config_wifi.mqtt_port  = result;   
+                       }
+
+        if(server.hasArg("mqtt_nameid")) { // 请求中是否包含有a的参数  
+          //config_wifi.mqtt_nameid = server.arg("mqtt_nameid"); // 获得a参数的值
+          server.arg("mqtt_nameid").toCharArray(config_wifi.mqtt_nameid, 100);    // 从网页得到的 WIFI名
+          
+          }
+          
+         if(server.hasArg("mqtt_ssid")) { // 请求中是否包含有a的参数  
+       // config_wifi.mqtt_ssid = server.arg("mqtt_ssid"); // 获得a参数的值   
+           server.arg("mqtt_ssid").toCharArray(config_wifi.mqtt_ssid, 20);    // 从网页得到的 WIFI名
+           }
+
+         if(server.hasArg("mqtt_psw")) { // 请求中是否包含有a的参数  
+         // config_wifi.mqtt_psw = server.arg("mqtt_psw"); // 获得a参数的值
+            server.arg("mqtt_psw").toCharArray(config_wifi.mqtt_psw, 20);    // 从网页得到的 WIFI名
+          }
+          
+         if(server.hasArg("mqtt_topic")) { // 请求中是否包含有a的参数  
+        // config_wifi.mqtt_topic = server.arg("mqtt_topic"); // 获得a参数的值    
+           server.arg("mqtt_topic").toCharArray(config_wifi.mqtt_topic, 100);    // 从网页得到的 WIFI名
+           }
+            
+         saveConfig();
+         mqtt_int();
+         server.send ( 200, "text/html", "服务器配置成功！请重启生效！"); // 网页返回给手机提示  
+         //ESP.reset();              
+         return;          
+    } 
+    else if(mqtt_config == "off") { // a=off  
+        server.send ( 200, "text/html", "config  is off!");
+        return;
+
+    }  
+
+    server.send ( 200, "text/html", "unknown action"); return;  
+
+  }  
+
+  server.send ( 200, "text/html", "action no found");  
+  
+  
+  }
+
 //3-5-6 网页测试
 void handleTest(){ 
      server.send(200, "text/html", http_html);
@@ -891,9 +990,6 @@ String getContentType(String filename){
 
 }  
 
-
-
-
 /************************* 4-2 服务器重连配置 *************************************/
  
 void mqtt_reconnect() {//等待，直到连接上服务器
@@ -918,34 +1014,26 @@ void mqtt_reconnect() {//等待，直到连接上服务器
         
         server.handleClient(); 
 
-    if (client.connect(((String)MQTT_MYNAME+SN).c_str(),MQTT_SSID,MQTT_PASSWORD)) {//接入时的用户名，尽量取一个很不常用的用户名
-     
-             client.subscribe(MQTT_MYTOPICR);//接收外来的数据时的intopic 
-           //  client.subscribe(MQTT_YOURTOPICS);//接收外来的数据时的intopic 
-            吗   client.publish(MQTT_MYTOPICS,"hello world ");
-           //  client.publish(MQTT_YOURTOPICR,"hello world ");
+   if (client.connect(((String)config_wifi.mqtt_nameid+SN).c_str(),config_wifi.mqtt_ssid,config_wifi.mqtt_psw)) {//接入时的用户名，尽量取一个很不常用的用户名
+    
+             client.subscribe(MQTT_MYTOPICR);//接收外来的数据时的intopic          
+             client.publish(MQTT_MYTOPICS,"hello world ");          
              Use_Serial.println("Connect succes mqtt!");//重新连接
-            Use_Serial.println(client.state());//重新连接
-             break;
+             Use_Serial.println(client.state());//重新连接
+            return;
 
     } else {
-            server.handleClient(); 
+      server.handleClient(); 
       Use_Serial.println("connect failed!");//连接失败
       Use_Serial.println(client.state());//重新连接
       Use_Serial.println(" try connect again in 2 seconds");//延时2秒后重新连接
       delay(2000);
-    }
-
-     
-
-  }
+      }  
+     }
 
   }
 }
 
-
-
- 
 /* 3 接收数据处理， 服务器回掉函数*/
 void callback(char* topic, byte* payload, unsigned int length) {//用于接收数据
    //-----------------1数据解析-----------------------------//
@@ -984,7 +1072,7 @@ void Mqtt_message(){
      Use_Serial.println(MQTT_MYTOPICS);     
      Use_Serial.println("rec_topic:");
     Use_Serial.println(MQTT_MYTOPICR);  
-        Use_Serial.println(MQTT_YOURTOPICS);
+  
    
   }
 
@@ -1001,12 +1089,6 @@ bool parseData( String  str) {
   
  
 }
-
-
-
-
-
- 
 
 void http_wait(){
   
@@ -1027,31 +1109,19 @@ void http_wait(){
   
   }
 //------------------------------------------- void setup() ------------------------------------------
-
+void mqtt_int(){
+   client.setServer( config_wifi.mqtt_sever, config_wifi.mqtt_port);
+   client.setCallback(callback);
+  }
 void setup() {
     Use_Serial.begin(115200); //串口初始化
     get_espid();              //获取自身唯一ID
     LED_Int();                //管脚初始化
     Button_Int();             //按钮初始化     
     loadConfig();             //读取保存信息 WIFI账号和密码
-    
- 
-    
-   client.setServer(MQTT_SERVER, PORT);
-   client.setCallback(callback);
-    Mqtt_message();
-    
-  
-  // 1 不按，直接连接WIFI  慢闪模式
-   // wifi_Init(); // 3次尝试
 
-   
-   //2短按2S但小于5S 开启WIFI系统，可进入配网模式 快闪模式
+     mqtt_int();
   
-  //  SET_AP();       // 建立WIFI
- //   SPIFFS.begin(); // ESP8266自身文件系统 启用 此方法装入SPIFFS文件系统。必须在使用任何其他FS API之前调用它。如果文件系统已成功装入，则返回true，否则返回false。
- //   Server_int();  // HTTP服务器开启
-   
     waitKey();                //等待按键动作 
      
 }
@@ -1060,8 +1130,8 @@ void setup() {
 
 
 //------------------------------------------- void void loop()  ------------------------------------------
-void mqtt_handle();
-void http_wait();
+
+
 void loop() 
 {
 
@@ -1071,14 +1141,14 @@ void loop()
    // 等待WIFI连接
    if(WiFi.status() == WL_CONNECTED){  
 
-        mqtt_reconnect();//确保连上服务器，否则一直等待。
+     mqtt_reconnect();//确保连上服务器，否则一直等待。
      client.loop();//MUC接收数据的主循环函数。 
      
                      }
    else {
        //WIFI断开，重新连接WIFI             
          if(workmode==0)
-                  {wifi_Init();}      
+                  {wifi_Init();   }      
          else if(workmode==1){                    
                   http_wait();
                       }
