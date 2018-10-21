@@ -1118,7 +1118,7 @@ void setup() {
 
      mqtt_int();
   
-    waitKey();                //等待按键动作 
+     waitKey();                //等待按键动作 
      
 }
 
