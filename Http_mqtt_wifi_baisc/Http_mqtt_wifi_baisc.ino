@@ -45,7 +45,8 @@ extern "C" {
 发布   lovelamp/+MQTT_MYNAME+"/s"     lovelamp/love_00001_x/s
 */
 
-
+//String mqtt_mytopic_s= String()+ String(config_wifi.mqtt_topic)+"s";
+//String mqtt_mytopic_r= String()+ String(config_wifi.mqtt_topic)+"r";
 
 
  //---------------------------------------------------------------------------------------------//
@@ -90,12 +91,11 @@ config_type config_wifi;
 
 
 // 自己的话题 
-String mqtt_mytopic_s= String()+ String(config_wifi.mqtt_topic)+"s";
-String mqtt_mytopic_r= String()+ String(config_wifi.mqtt_topic)+"r";
+String mqtt_mytopic_s= String()+ "lovelamp/love_00001_x/"+"s";
+String mqtt_mytopic_r= String()+ "lovelamp/love_00001_x/"+"r";
+//String mqtt_mytopic_s= String()+ String(config_wifi.mqtt_topic)+"s";
+//String mqtt_mytopic_r= String()+ String(config_wifi.mqtt_topic)+"r";
 
-//  网页
-#define MQTT_MYTOPICS  mqtt_mytopic_s.c_str()
-#define MQTT_MYTOPICR  mqtt_mytopic_r.c_str()
  
 //------是否开启打印-----------------
 #define Use_Serial Serial
@@ -286,8 +286,8 @@ void waitKey()
       // 按键触摸大于2S  进入自动配网模式
     if ( keyCnt >= 200 ) // 200*10=2000ms=2s  大于2s反转
     { //按2S 进入一键配置
-       workmode=1;
-      Serial.println("\r\n Short Press key");
+             workmode=1;
+            Serial.println("\r\n Short Press key");
 
             //  smartConfig();  workmode=0;
 
@@ -295,24 +295,20 @@ void waitKey()
              SPIFFS.begin(); // ESP8266自身文件系统 启用 此方法装入SPIFFS文件系统。必须在使用任何其他FS API之前调用它。如果文件系统已成功装入，则返回true，否则返回false。
              Server_int();  // HTTP服务器开启
              led_sudu=30;
-    }
+        }
      }
 
    
       // 不按按键，自动连接上传WIFI
     if (millis() - preTick2 > 5000 && digitalRead(PIN_Led_Key) == 0) {   // 大于5S还灭有触摸，直接进入配网
-       Serial.println("\r\n 10s timeout!");
-            if(  workmode==0){ 
-              
+       Serial.println("\r\n 5s timeout!");
+            if(  workmode==0){             
                wifi_Init();           
-               WiFi.mode(WIFI_STA);
-             
-            
+               WiFi.mode(WIFI_STA);                
             }          
             return; 
             }
-                                  
-    
+                                     
     if (digitalRead(PIN_Led_Key) == 1){ keyCnt++;}
     else{keyCnt = 0;}
     
@@ -861,6 +857,7 @@ void handleMqttConfig(){
            }
             
          saveConfig();
+        
          mqtt_int();
          server.send ( 200, "text/html", "服务器配置成功！请重启生效！"); // 网页返回给手机提示  
          //ESP.reset();              
@@ -1015,11 +1012,17 @@ void mqtt_reconnect() {//等待，直到连接上服务器
         server.handleClient(); 
 
    if (client.connect(((String)config_wifi.mqtt_nameid+SN).c_str(),config_wifi.mqtt_ssid,config_wifi.mqtt_psw)) {//接入时的用户名，尽量取一个很不常用的用户名
-    
-             client.subscribe(MQTT_MYTOPICR);//接收外来的数据时的intopic          
-             client.publish(MQTT_MYTOPICS,"hello world ");          
+       mqtt_mytopic_s= String()+ String(config_wifi.mqtt_topic)+"/s";
+       mqtt_mytopic_r= String()+ String(config_wifi.mqtt_topic)+"/r";
+             client.subscribe(mqtt_mytopic_r.c_str());//接收外来的数据时的intopic          
+             client.publish(mqtt_mytopic_s.c_str(),"hello world ");          
              Use_Serial.println("Connect succes mqtt!");//重新连接
-             Use_Serial.println(client.state());//重新连接
+             
+              Use_Serial.println(client.state());//重新连接
+              Use_Serial.println("recive topic!");//重新连接
+              Use_Serial.println(mqtt_mytopic_r);//重新连接
+              Use_Serial.println("send topic!");//重新连接
+              Use_Serial.println(mqtt_mytopic_s);//重新连接
             return;
 
     } else {
@@ -1064,15 +1067,7 @@ void callback(char* topic, byte* payload, unsigned int length) {//用于接收�
  
 void Mqtt_message(){
  
-    Use_Serial.println("----------Mqtt--------");
-
-    Use_Serial.print("Name:");
-    Use_Serial.println((String)MQTT_MYNAME);
-     Use_Serial.println("pub_topic:");
-     Use_Serial.println(MQTT_MYTOPICS);     
-     Use_Serial.println("rec_topic:");
-    Use_Serial.println(MQTT_MYTOPICR);  
-  
+   
    
   }
 
@@ -1094,8 +1089,9 @@ void http_wait(){
   
    unsigned long preTick = millis();
            int num = 0;
-               while(WiFi.status() != WL_CONNECTED&&workmode==1){
-                  server.handleClient(); 
+             while(WiFi.status() != WL_CONNECTED&&workmode==1){
+              ESP.wdtFeed();
+              server.handleClient(); 
               if (millis() - preTick < 10 ) continue;//等待10ms
               preTick = millis();
               num++;
